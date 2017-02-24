@@ -9,6 +9,7 @@
 #include "Toroidal2dVertexMesh.hpp"
 #include "CellsGenerator.hpp"
 #include "MatteoCellCycleModel.hpp"
+#include "MatteoForce.hpp"
 #include "CellLabel.hpp"
 #include "DifferentiatedCellProliferativeType.hpp"
 #include "VertexBasedCellPopulation.hpp"
@@ -43,17 +44,15 @@ public:
         cells_generator.GenerateBasic(cells, p_mesh->GetNumElements(), std::vector<unsigned>(), p_diff_type);
 
        for(unsigned i=0; i<cells.size();i++)
-           {
+         {
            cells[i]->GetCellData()->SetItem("divide", 0);
            cells[i]->GetCellData()->SetItem("fitness", 1);
-           
-           }
-          
+         }
 
         /* Using the vertex mesh and cells, we create a cell-based population object, and specify which results to
          * output to file. */
         VertexBasedCellPopulation<2> cell_population(*p_mesh, cells);
-        cell_population.AddCellWriter<CellLabelWriter>();        
+        cell_population.AddCellWriter<CellLabelWriter>();
 
         /* We randomly label some cells using the cell property {{{CellLabel}}}. We begin by creating a shared pointer to
          * this cell property using the helper singleton {{{CellPropertyRegistry}}}. We then loop over the cells and label
@@ -76,7 +75,7 @@ public:
         OffLatticeSimulation<2> simulator(cell_population);
         simulator.SetOutputDirectory("TestMatteo");
         simulator.SetSamplingTimestepMultiple(10);
-        simulator.SetEndTime(100.0);
+        simulator.SetEndTime(11.0);
 
         /* Next we create the differential adhesion force law. This builds upon the model of Nagai, Honda and co-workers
          * encounted in the TestRunningVertexBasedSimulationsTutorial by allowing different values of the adhesion
@@ -86,7 +85,7 @@ public:
          * values of the parameters. If the adhesion energy for two neighbouring homotypic cells is less than that of two
          * heterotypic cells, then we may expect cell sorting to occur, in which the cells of each type will tend to locally
          * aggregate over time. */
-        MAKE_PTR(FarhadifarForce<2>, p_force);
+        MAKE_PTR(MatteoForce<2>, p_force);
         simulator.AddForce(p_force);
 
         /* A {{{NagaiHondaForceDifferentialAdhesionForce}}} assumes that each cell has been assigned a target area.

@@ -1,5 +1,5 @@
 
-
+#include "CellLabel.hpp"
 #include "MatteoForce.hpp"
 
 template<unsigned DIM>
@@ -15,7 +15,7 @@ MatteoForce<DIM>::~MatteoForce()
 
 
 template<unsigned DIM>
-double MatteoForce<DIM>::GetLineTensionParameter(Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation)
+double MatteoForce<DIM>::GetLineTensionParameter(unsigned elem_index, Node<DIM>* pNodeA, Node<DIM>* pNodeB, VertexBasedCellPopulation<DIM>& rVertexCellPopulation)
 {
     // Find the indices of the elements owned by each node
     std::set<unsigned> elements_containing_nodeA = pNodeA->rGetContainingElementIndices();
@@ -32,18 +32,24 @@ double MatteoForce<DIM>::GetLineTensionParameter(Node<DIM>* pNodeA, Node<DIM>* p
     // Check that the nodes have a common edge
     assert(!shared_elements.empty());
 
-    // Since each internal edge is visited twice in the loop above, we have to use half the line tension parameter
-    // for each visit.
-    //double line_tension_parameter_in_calculation = this->GetLineTensionParameter()/2.0;
-      double line_tension_parameter_in_calculation = 0.12;
-    // If the edge corresponds to a single element, then the cell is on the boundary
-    if (shared_elements.size() == 1)
-    {
-      //  line_tension_parameter_in_calculation = this->GetBoundaryLineTensionParameter();
-    line_tension_parameter_in_calculation = 0.12;  
-  }
+    double tension;
 
-    return line_tension_parameter_in_calculation;
+    // use different values for mutants and wild type cells
+    CellPtr c = rVertexCellPopulation.GetCellUsingLocationIndex(elem_index);
+    if (c->template HasCellProperty<CellLabel>()) {
+      tension = 0.06;
+    } else {
+      tension = 0.12;
+    }
+
+    // If the edge corresponds to a single element, then the cell is on the boundary
+    // if not on the boundary it will be visited twice.
+    if (shared_elements.size() != 1)
+    {
+      tension /= 2;
+    }
+
+    return tension;
 }
 
 
