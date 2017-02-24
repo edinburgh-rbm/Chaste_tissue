@@ -45,6 +45,7 @@ MatteoSrnModel::MatteoSrnModel(boost::shared_ptr<AbstractCellCycleModelOdeSolver
         mpOdeSolver->Initialise();
         mpOdeSolver->SetMaxSteps(10000);
 #else
+#error "use a real ode solver"	
         mpOdeSolver = CellCycleModelOdeSolver<MatteoSrnModel, RungeKutta4IvpOdeSolver>::Instance();
         mpOdeSolver->Initialise();
         SetDt(0.001);
