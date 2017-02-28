@@ -1,6 +1,6 @@
 
-#include "CellLabel.hpp"
 #include "MatteoForce.hpp"
+#include "PopulationConstants.hpp"
 
 template<unsigned DIM>
 MatteoForce<DIM>::MatteoForce()
@@ -36,16 +36,15 @@ double MatteoForce<DIM>::GetLineTensionParameter(unsigned elem_index, Node<DIM>*
 
     // use different values for mutants and wild type cells
     CellPtr c = rVertexCellPopulation.GetCellUsingLocationIndex(elem_index);
-    if (c->template HasCellProperty<CellLabel>()) {
-      tension = 0.06;
+    if (c->GetCellProliferativeType() == p_wild_type) {
+      tension = wild_type_lambda;
     } else {
-      tension = 0.12;
+      tension = diff_type_lambda;
     }
 
     // If the edge corresponds to a single element, then the cell is on the boundary
     // if not on the boundary it will be visited twice.
-    if (shared_elements.size() != 1)
-    {
+    if (shared_elements.size() != 1) {
       tension /= 2;
     }
 

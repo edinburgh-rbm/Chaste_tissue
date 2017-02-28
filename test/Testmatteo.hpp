@@ -11,7 +11,7 @@
 #include "MatteoCellCycleModel.hpp"
 #include "MatteoForce.hpp"
 #include "CellLabel.hpp"
-#include "DifferentiatedCellProliferativeType.hpp"
+#include "PopulationConstants.hpp"
 #include "VertexBasedCellPopulation.hpp"
 #include "OffLatticeSimulation.hpp"
 #include "SmartPointers.hpp"
@@ -39,7 +39,6 @@ public:
          * the three lines below in a straightforward manner to incorporate cell proliferation and investigate
          * the effect of this on the cell sorting process. */
         std::vector<CellPtr> cells;
-        MAKE_PTR(DifferentiatedCellProliferativeType, p_diff_type);
         CellsGenerator<MatteoCellCycleModel, 2> cells_generator;
         cells_generator.GenerateBasic(cells, p_mesh->GetNumElements(), std::vector<unsigned>(), p_diff_type);
 
