@@ -5,6 +5,7 @@
 
 #include <cxxtest/TestSuite.h>
 #include <boost/program_options.hpp>
+#include <boost/format.hpp>
 #include "CheckpointArchiveTypes.hpp"
 #include "AbstractCellBasedTestSuite.hpp"
 #include "HoneycombMeshGenerator.hpp"
@@ -21,6 +22,7 @@
 #include "NoCellCycleModel.hpp"
 #include "CommandLineArguments.hpp"
 #include "PopulationConstants.hpp"
+#include "CellProliferativeTypesWriter.hpp"
 
 namespace po = boost::program_options;
 
@@ -52,7 +54,8 @@ protected:
       ("lambda,l", po::value<double>()->default_value(0.12),"Rigidity of wild-type cells")
       ("mutant,m", po::value<double>()->default_value(0.12), "Rigidity of mutant cells")
       ("proportion,p", po::value<double>()->default_value(0.1), "Proportion of population that is mutant")
-      ("number,n", po::value<unsigned>()->default_value(16), "sqrt(number of cells)");
+      ("number,n", po::value<unsigned>()->default_value(16), "sqrt(number of cells)")
+      ("time,t", po::value<double>()->default_value(10.0), "Simulation end time");
 
     int argc = *(CommandLineArguments::Instance()->p_argc);
     TS_ASSERT_LESS_THAN(0, argc); // argc should always be 1 or greater
@@ -113,13 +116,16 @@ public:
     /* Using the vertex mesh and cells, we create a cell-based population object, and specify which results to
      * output to file. */
     VertexBasedCellPopulation<2> cell_population(*p_mesh, cells);
+    cell_population.AddCellWriter<CellProliferativeTypesWriter>();
 
     /* We are now in a position to create and configure the cell-based simulation object, pass a force law to it,
      * and run the simulation. We can make the simulation run for longer to see more patterning by increasing the end time. */
     OffLatticeSimulation<2> simulator(cell_population);
-    simulator.SetOutputDirectory("TestOptogenetics");
+
+    simulator.SetOutputDirectory(boost::str(boost::format("Optogenetics-l%1%-m%2%") % wild_type_lambda % diff_type_lambda));
+                                
     simulator.SetSamplingTimestepMultiple(10);
-    simulator.SetEndTime(11.0);
+    simulator.SetEndTime(args["time"].as<double>());
 
     /* Then, we define the modifier class, which automatically updates the values of Delta and Notch within the cells in {{{CellData}}} and passes it to the simulation.*/
     MAKE_PTR(DeltaNotchTrackingModifier<2>, p_modifier);
