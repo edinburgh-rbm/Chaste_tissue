@@ -55,6 +55,7 @@ protected:
       ("mutant,m", po::value<double>()->default_value(0.12), "Rigidity of mutant cells")
       ("proportion,p", po::value<double>()->default_value(0.1), "Proportion of population that is mutant")
       ("number,n", po::value<unsigned>()->default_value(16), "sqrt(number of cells)")
+      ("sample,s", po::value<unsigned>()->default_value(1), "Sampling time step multiple")
       ("time,t", po::value<double>()->default_value(10.0), "Simulation end time");
 
     int argc = *(CommandLineArguments::Instance()->p_argc);
@@ -123,8 +124,7 @@ public:
     OffLatticeSimulation<2> simulator(cell_population);
 
     simulator.SetOutputDirectory(boost::str(boost::format("Optogenetics-l%1%-m%2%") % wild_type_lambda % diff_type_lambda));
-                                
-    simulator.SetSamplingTimestepMultiple(10);
+    simulator.SetSamplingTimestepMultiple(args["sample"].as<unsigned>());
     simulator.SetEndTime(args["time"].as<double>());
 
     /* Then, we define the modifier class, which automatically updates the values of Delta and Notch within the cells in {{{CellData}}} and passes it to the simulation.*/
