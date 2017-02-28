@@ -51,7 +51,8 @@ protected:
       ("help,h", "Display this help message")
       ("lambda,l", po::value<double>()->default_value(0.12),"Rigidity of wild-type cells")
       ("mutant,m", po::value<double>()->default_value(0.12), "Rigidity of mutant cells")
-      ("proportion,p", po::value<double>()->default_value(0.1), "Proportion of population that is mutant");
+      ("proportion,p", po::value<double>()->default_value(0.1), "Proportion of population that is mutant")
+      ("number,n", po::value<unsigned>()->default_value(16), "sqrt(number of cells)");
 
     int argc = *(CommandLineArguments::Instance()->p_argc);
     TS_ASSERT_LESS_THAN(0, argc); // argc should always be 1 or greater
@@ -79,7 +80,7 @@ public:
     ProcessCommandLineArguments();
 
     /* First we create a regular vertex mesh. */
-    HoneycombVertexMeshGenerator generator(10, 10);
+    HoneycombVertexMeshGenerator generator(args["number"].as<unsigned>(), args["number"].as<unsigned>());
     MutableVertexMesh<2,2>* p_mesh = generator.GetMesh();
 
     std::vector<CellPtr> cells;
