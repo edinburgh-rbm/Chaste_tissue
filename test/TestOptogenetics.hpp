@@ -14,9 +14,7 @@
 #include "OffLatticeSimulation.hpp"
 #include "VertexBasedCellPopulation.hpp"
 #include "MatteoForce.hpp"
-#if 0
 #include "RandomMotionForce.hpp"
-#endif
 #include "ConstantTargetAreaModifier.hpp"
 #include "GeneralisedLinearSpringForce.hpp"
 #include "WildTypeCellMutationState.hpp"
@@ -59,6 +57,7 @@ protected:
 	("mixed,x", po::value<double>()->default_value(0.0), "Rigidity of mixed boundary")
 	("proportion,p", po::value<double>()->default_value(0.1), "Proportion of population that is mutant")
 	("number,n", po::value<unsigned>()->default_value(16), "sqrt(number of cells)")
+        ("noise,z", po::value<double>()->default_value(0.05), "Noise parameter")
 	("dt,d", po::value<double>()->default_value(1.0/200.0), "Simulation time step")
 	("sample,s", po::value<unsigned>()->default_value(200), "Sampling time step multiple")
 	("time,t", po::value<double>()->default_value(10.0), "Simulation end time");
@@ -92,6 +91,7 @@ public:
     /* First we create a regular vertex mesh. */
     HoneycombVertexMeshGenerator generator(args["number"].as<unsigned>(), args["number"].as<unsigned>());
     MutableVertexMesh<2,2>* p_mesh = generator.GetMesh();
+    p_mesh->SetCellRearrangementThreshold(0.1);
 
     std::vector<CellPtr> cells;
     MAKE_PTR(WildTypeCellMutationState, p_state);
@@ -111,6 +111,9 @@ public:
       double birth_time = -RandomNumberGenerator::Instance()->ranf()*12.0;
       p_cell->SetBirthTime(birth_time);
 
+      // Set a target area rather than setting a growth modifier. (the modifiers don't work correctly as making very long G1 phases)
+      p_cell->GetCellData()->SetItem("target area", 1.0);
+
       if (RandomNumberGenerator::Instance()->ranf() < args["proportion"].as<double>()) {
         p_cell->SetCellProliferativeType(p_diff_type);
       } else {
@@ -125,11 +128,13 @@ public:
     VertexBasedCellPopulation<2> cell_population(*p_mesh, cells);
     cell_population.AddCellWriter<CellProliferativeTypesWriter>();
 
+    double noise = args["noise"].as<double>();
+
     /* We are now in a position to create and configure the cell-based simulation object, pass a force law to it,
      * and run the simulation. We can make the simulation run for longer to see more patterning by increasing the end time. */
     OffLatticeSimulation<2> simulator(cell_population);
 
-    simulator.SetOutputDirectory(boost::str(boost::format("Optogenetics-l%1%-m%2%-x%3%") % wild_type_lambda % diff_type_lambda % mixed_type_lambda));
+    simulator.SetOutputDirectory(boost::str(boost::format("Optogenetics-l%1%-m%2%-x%3%-z%4%") % wild_type_lambda % diff_type_lambda % mixed_type_lambda % noise));
 
     /* set up the timing */
     simulator.SetDt(args["dt"].as<double>());
@@ -143,12 +148,10 @@ public:
     MAKE_PTR(MatteoForce<2>, p_force);
     simulator.AddForce(p_force);
 
-#if 0
     // Add some noise to avoid local minimum
     MAKE_PTR(RandomMotionForce<2>, p_random_force);
-    p_random_force->SetMovementParameter(0.1);
+    p_random_force->SetMovementParameter(noise);
     simulator.AddForce(p_random_force);
-#endif
 
     /* This modifier assigns target areas to each cell, which are required by the {{{MatteoHondaForce}}}.
      */
