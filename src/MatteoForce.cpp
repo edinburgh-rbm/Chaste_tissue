@@ -34,18 +34,38 @@ double MatteoForce<DIM>::GetLineTensionParameter(unsigned elem_index, Node<DIM>*
 
     double tension;
 
-    // use different values for mutants and wild type cells
-    CellPtr c = rVertexCellPopulation.GetCellUsingLocationIndex(elem_index);
-    if (c->GetCellProliferativeType() == p_wild_type) {
-      tension = wild_type_lambda;
+    if (shared_elements.size() == 1) {
+	CellPtr c = rVertexCellPopulation.GetCellUsingLocationIndex(elem_index);
+	if (c->GetCellProliferativeType() == p_wild_type) {
+	    tension = wild_type_lambda;
+	} else {
+	    tension = diff_type_lambda;
+	}
     } else {
-      tension = diff_type_lambda;
-    }
+	unsigned n_wild = 0, n_diff = 0;
 
-    // If the edge corresponds to a single element, then the cell is on the boundary
-    // if not on the boundary it will be visited twice.
-    if (shared_elements.size() != 1) {
-      tension /= 2;
+	for (std::set<unsigned>::iterator iter = shared_elements.begin(); iter != shared_elements.end(); ++iter) {
+	    unsigned i = *(iter);
+	    CellPtr c = rVertexCellPopulation.GetCellUsingLocationIndex(i);
+	    if (c->GetCellProliferativeType() == p_wild_type) {
+		n_wild++;
+	    } else {
+		n_diff++;
+	    }
+	}
+	
+	assert(n_wild + n_diff == 2);
+	if (n_wild == 2) {
+	    tension = wild_type_lambda;
+	} else if (n_diff == 2) {
+	    tension = diff_type_lambda;
+	} else {
+	    tension = mixed_type_lambda;
+	}
+
+	// If the edge corresponds to a single element, then the cell is on the boundary
+	// if not on the boundary it will be visited twice.
+	tension /= 2;
     }
 
     return tension;

@@ -14,6 +14,9 @@
 #include "OffLatticeSimulation.hpp"
 #include "VertexBasedCellPopulation.hpp"
 #include "MatteoForce.hpp"
+#if 0
+#include "RandomMotionForce.hpp"
+#endif
 #include "ConstantTargetAreaModifier.hpp"
 #include "GeneralisedLinearSpringForce.hpp"
 #include "WildTypeCellMutationState.hpp"
@@ -50,13 +53,15 @@ protected:
     po::options_description description("Chaste Tissue Optogenetics Test Usage");
 
     description.add_options()
-      ("help,h", "Display this help message")
-      ("lambda,l", po::value<double>()->default_value(0.12),"Rigidity of wild-type cells")
-      ("mutant,m", po::value<double>()->default_value(0.12), "Rigidity of mutant cells")
-      ("proportion,p", po::value<double>()->default_value(0.1), "Proportion of population that is mutant")
-      ("number,n", po::value<unsigned>()->default_value(16), "sqrt(number of cells)")
-      ("sample,s", po::value<unsigned>()->default_value(1), "Sampling time step multiple")
-      ("time,t", po::value<double>()->default_value(10.0), "Simulation end time");
+	("help,h", "Display this help message")
+	("lambda,l", po::value<double>()->default_value(0.12),"Rigidity of wild-type boundary")
+	("diff,m", po::value<double>()->default_value(0.12), "Rigidity of differentiated boundary")
+	("mixed,x", po::value<double>()->default_value(0.0), "Rigidity of mixed boundary")
+	("proportion,p", po::value<double>()->default_value(0.1), "Proportion of population that is mutant")
+	("number,n", po::value<unsigned>()->default_value(16), "sqrt(number of cells)")
+	("dt,d", po::value<double>()->default_value(1.0/200.0), "Simulation time step")
+	("sample,s", po::value<unsigned>()->default_value(200), "Sampling time step multiple")
+	("time,t", po::value<double>()->default_value(10.0), "Simulation end time");
 
     int argc = *(CommandLineArguments::Instance()->p_argc);
     TS_ASSERT_LESS_THAN(0, argc); // argc should always be 1 or greater
@@ -72,7 +77,8 @@ protected:
     }
 
     wild_type_lambda = args["lambda"].as<double>();
-    diff_type_lambda = args["mutant"].as<double>();
+    diff_type_lambda = args["diff"].as<double>();
+    mixed_type_lambda = args["mixed"].as<double>();
   }
 
 public:
@@ -123,7 +129,10 @@ public:
      * and run the simulation. We can make the simulation run for longer to see more patterning by increasing the end time. */
     OffLatticeSimulation<2> simulator(cell_population);
 
-    simulator.SetOutputDirectory(boost::str(boost::format("Optogenetics-l%1%-m%2%") % wild_type_lambda % diff_type_lambda));
+    simulator.SetOutputDirectory(boost::str(boost::format("Optogenetics-l%1%-m%2%-x%3%") % wild_type_lambda % diff_type_lambda % mixed_type_lambda));
+
+    /* set up the timing */
+    simulator.SetDt(args["dt"].as<double>());
     simulator.SetSamplingTimestepMultiple(args["sample"].as<unsigned>());
     simulator.SetEndTime(args["time"].as<double>());
 
@@ -133,6 +142,13 @@ public:
 
     MAKE_PTR(MatteoForce<2>, p_force);
     simulator.AddForce(p_force);
+
+#if 0
+    // Add some noise to avoid local minimum
+    MAKE_PTR(RandomMotionForce<2>, p_random_force);
+    p_random_force->SetMovementParameter(0.1);
+    simulator.AddForce(p_random_force);
+#endif
 
     /* This modifier assigns target areas to each cell, which are required by the {{{MatteoHondaForce}}}.
      */
