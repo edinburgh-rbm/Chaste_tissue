@@ -11,6 +11,11 @@
 
 #include <iostream>
 
+
+extern double **costs;
+extern double **demographics;
+extern int ntypes;
+
 /**
  * A force class for use in Vertex-based simulations. This force is based on the
  * Energy function proposed by Matteo et al in  Curr. Biol., 2007, 17, 2095-2104.
@@ -37,15 +42,14 @@ private:
     {
         archive & boost::serialization::base_object<FarhadifarForce<DIM> >(*this);
     }
-
-
+  
 public:
 
     /**
      * Constructor.
      */
     MatteoForce();
-
+  
     /**
      * Destructor.
      */

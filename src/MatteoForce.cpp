@@ -1,11 +1,14 @@
 
 #include "MatteoForce.hpp"
-#include "PopulationConstants.hpp"
+
+int ntypes;
+double **costs;
+double **demographics;
 
 template<unsigned DIM>
 MatteoForce<DIM>::MatteoForce()
    : FarhadifarForce<DIM>()
-     {
+{
 }
 
 template<unsigned DIM>
@@ -33,50 +36,57 @@ double MatteoForce<DIM>::GetLineTensionParameter(unsigned elem_index, Node<DIM>*
     assert(!shared_elements.empty());
 
     double tension;
+    CellPtr c = rVertexCellPopulation.GetCellUsingLocationIndex(elem_index);
+    int colour = c->GetCellData()->GetItem("cell type");
 
     if (shared_elements.size() == 1) {
-	CellPtr c = rVertexCellPopulation.GetCellUsingLocationIndex(elem_index);
-	if (c->GetCellProliferativeType() == p_wild_type) {
-	    tension = wild_type_lambda;
-	} else {
-	    tension = diff_type_lambda;
-	}
+      tension = costs[colour][colour];
     } else {
-	unsigned n_wild = 0, n_diff = 0;
+      int ocolour = colour;
 
-	for (std::set<unsigned>::iterator iter = shared_elements.begin(); iter != shared_elements.end(); ++iter) {
-	    unsigned i = *(iter);
-	    CellPtr c = rVertexCellPopulation.GetCellUsingLocationIndex(i);
-	    if (c->GetCellProliferativeType() == p_wild_type) {
-		n_wild++;
-	    } else {
-		n_diff++;
-	    }
-	}
+      for (std::set<unsigned>::iterator iter = shared_elements.begin(); iter != shared_elements.end(); ++iter) {
+	unsigned i = *(iter);
+	CellPtr oc = rVertexCellPopulation.GetCellUsingLocationIndex(i);
+	int o = oc->GetCellData()->GetItem("cell type");
+	// in this loop, we will visit the current cell as well, so
+	// only remember colour if it is different
+	if (o != colour)
+	  ocolour = o;
+
+	tension = costs[colour][ocolour];
 	
-	assert(n_wild + n_diff == 2);
-	if (n_wild == 2) {
-	    tension = wild_type_lambda;
-	} else if (n_diff == 2) {
-	    tension = diff_type_lambda;
-	} else {
-	    tension = mixed_type_lambda;
-	}
-
 	// If the edge corresponds to a single element, then the cell is on the boundary
 	// if not on the boundary it will be visited twice.
 	tension /= 2;
-    }
+      }
 
+    }
     return tension;
 }
-
 
 template<unsigned DIM>
 void MatteoForce<DIM>::OutputForceParameters(out_stream& rParamsFile)
 {
-    // Call method on direct parent class
-    FarhadifarForce<DIM>::OutputForceParameters(rParamsFile);
+  *rParamsFile << "\t\t\t<Costs>" << ntypes << " " << ntypes << "\n";
+  for (int i=0; i<ntypes; i++) {
+    for (int j=0; j<ntypes; j++) {
+      *rParamsFile << costs[i][j];
+      if (j < ntypes-1) {
+	*rParamsFile << " ";
+      } else {
+	*rParamsFile << "\n";
+      }
+    }
+  }
+  *rParamsFile << "</Costs>\n";
+
+  *rParamsFile << "\t\t\t<Demographics>" << ntypes << " 1\n";		  
+  for (int i=0; i<ntypes; i++) {
+    *rParamsFile << demographics[i][0] << "\n";
+  }
+  *rParamsFile << "</Demographics>\n";
+
+  FarhadifarForce<DIM>::OutputForceParameters(rParamsFile);
 }
 
 // Explicit instantiation

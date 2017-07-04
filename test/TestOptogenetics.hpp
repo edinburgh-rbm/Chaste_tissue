@@ -22,8 +22,7 @@
 #include "PetscSetupAndFinalize.hpp"
 #include "NoCellCycleModel.hpp"
 #include "CommandLineArguments.hpp"
-#include "PopulationConstants.hpp"
-#include "CellProliferativeTypesWriter.hpp"
+#include "TextMatrix.hpp"
 
 namespace po = boost::program_options;
 
@@ -51,16 +50,14 @@ protected:
     po::options_description description("Chaste Tissue Optogenetics Test Usage");
 
     description.add_options()
-	("help,h", "Display this help message")
-	("lambda,l", po::value<double>()->default_value(0.12),"Rigidity of wild-type boundary")
-	("diff,m", po::value<double>()->default_value(0.12), "Rigidity of differentiated boundary")
-	("mixed,x", po::value<double>()->default_value(0.0), "Rigidity of mixed boundary")
-	("proportion,p", po::value<double>()->default_value(0.1), "Proportion of population that is mutant")
-	("number,n", po::value<unsigned>()->default_value(16), "sqrt(number of cells)")
-        ("noise,z", po::value<double>()->default_value(0.05), "Noise parameter")
-	("dt,d", po::value<double>()->default_value(1.0/200.0), "Simulation time step")
-	("sample,s", po::value<unsigned>()->default_value(200), "Sampling time step multiple")
-	("time,t", po::value<double>()->default_value(10.0), "Simulation end time");
+      ("help,h", "Display this help message")
+      ("costs,c", po::value<std::string>()->default_value("costs.txt"),"Edge-cost matrix")
+      ("demographics,p", po::value<std::string>()->default_value("population.txt"), "Population proportion vector")
+      ("number,n", po::value<unsigned>()->default_value(16), "sqrt(number of cells)")
+      ("noise,z", po::value<double>()->default_value(0.05), "Noise parameter")
+      ("dt,d", po::value<double>()->default_value(1.0/200.0), "Simulation time step")
+      ("sample,s", po::value<unsigned>()->default_value(200), "Sampling time step multiple")
+      ("time,t", po::value<double>()->default_value(10.0), "Simulation end time");
 
     int argc = *(CommandLineArguments::Instance()->p_argc);
     TS_ASSERT_LESS_THAN(0, argc); // argc should always be 1 or greater
@@ -75,9 +72,30 @@ protected:
       exit(0);
     }
 
-    wild_type_lambda = args["lambda"].as<double>();
-    diff_type_lambda = args["diff"].as<double>();
-    mixed_type_lambda = args["mixed"].as<double>();
+    int one = 0;
+    std::string f_demo = args["demographics"].as<std::string>();
+    demographics = read_matrix(f_demo.c_str(), ntypes, one);
+    if (!demographics) {
+      std::cout << "error reading population matrix from population.txt";
+      exit(-1);
+    }
+    if (one != 1) {
+      std::cout << "population matrix is the wrong shape, should be one column, is " << one;
+      exit(-1);
+    }
+
+    int rows = 0;
+    int cols = 0;
+    std::string f_costs = args["costs"].as<std::string>();
+    costs = read_matrix(f_costs.c_str(), rows, cols);
+    if (!costs) {
+      std::cout << "error reading cost (lambda) matrix from costs.txt";
+      exit(-1);
+    }
+    if (rows != ntypes || cols != ntypes) {
+      std::cout << "cost (lambda) matrix is the wrong shape, should be " << ntypes << "x" << ntypes << " but is " << rows << "x" << cols;
+      exit(-1);
+    }
   }
 
 public:
@@ -87,7 +105,7 @@ public:
     EXIT_IF_PARALLEL;
 
     ProcessCommandLineArguments();
-
+    
     /* First we create a regular vertex mesh. */
     HoneycombVertexMeshGenerator generator(args["number"].as<unsigned>(), args["number"].as<unsigned>());
     MutableVertexMesh<2,2>* p_mesh = generator.GetMesh();
@@ -113,11 +131,15 @@ public:
 
       // Set a target area rather than setting a growth modifier. (the modifiers don't work correctly as making very long G1 phases)
       p_cell->GetCellData()->SetItem("target area", 1.0);
-
-      if (RandomNumberGenerator::Instance()->ranf() < args["proportion"].as<double>()) {
-        p_cell->SetCellProliferativeType(p_diff_type);
-      } else {
-        p_cell->SetCellProliferativeType(p_wild_type);
+      
+      double rnd = RandomNumberGenerator::Instance()->ranf();
+      double cumulative = 0;
+      for (int i=0; i<ntypes; i++) {
+	cumulative += demographics[i][0];
+	if (rnd <= cumulative) {
+	  p_cell->GetCellData()->SetItem("cell type", i);
+	  break;
+	}
       }
 
       cells.push_back(p_cell);
@@ -126,16 +148,14 @@ public:
     /* Using the vertex mesh and cells, we create a cell-based population object, and specify which results to
      * output to file. */
     VertexBasedCellPopulation<2> cell_population(*p_mesh, cells);
-    cell_population.AddCellWriter<CellProliferativeTypesWriter>();
-
-    double noise = args["noise"].as<double>();
 
     /* We are now in a position to create and configure the cell-based simulation object, pass a force law to it,
      * and run the simulation. We can make the simulation run for longer to see more patterning by increasing the end time. */
     OffLatticeSimulation<2> simulator(cell_population);
 
-    simulator.SetOutputDirectory(boost::str(boost::format("Optogenetics-l%1%-m%2%-x%3%-z%4%") % wild_type_lambda % diff_type_lambda % mixed_type_lambda % noise));
+    simulator.SetOutputDirectory("Optogenetics");
 
+    
     /* set up the timing */
     simulator.SetDt(args["dt"].as<double>());
     simulator.SetSamplingTimestepMultiple(args["sample"].as<unsigned>());
@@ -149,6 +169,7 @@ public:
     simulator.AddForce(p_force);
 
     // Add some noise to avoid local minimum
+    double noise = args["noise"].as<double>();
     MAKE_PTR(RandomMotionForce<2>, p_random_force);
     p_random_force->SetMovementParameter(noise);
     simulator.AddForce(p_random_force);
@@ -157,6 +178,7 @@ public:
      */
     MAKE_PTR(ConstantTargetAreaModifier<2>, p_growth_modifier);
     simulator.AddSimulationModifier(p_growth_modifier);
+
     simulator.Solve();
   }
 };
